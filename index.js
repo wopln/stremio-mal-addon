@@ -1,45 +1,29 @@
-// index.js
-// Global error handlers (put at top)
-process.on('uncaughtException', (err) => {
-  console.error('*** uncaughtException ***');
-  console.error(err && err.stack ? err.stack : err);
-});
-process.on('unhandledRejection', (reason, p) => {
-  console.error('*** unhandledRejection ***');
-  console.error('reason:', reason);
-  console.error('promise:', p);
-});
-
 const express = require("express");
 const axios = require("axios");
 
 const app = express();
 
-// CORS / headers - put before routes
+// Middleware
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  // quick OPTIONS response
-  if (req.method === "OPTIONS") return res.sendStatus(204);
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "*");
   next();
 });
 
-// lightweight request logger
-app.use((req, res, next) => {
-  console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.url} - ${req.ip}`);
-  next();
-});
-
+// Root
 app.get("/", (req, res) => {
   res.send("Stremio MAL Addon is running 🚀");
 });
 
-const MAL_CLIENT_ID = process.env.MAL_CLIENT_ID || ""; // set this in Railway variables
+// Env
+const MAL_CLIENT_ID = process.env.MAL_CLIENT_ID;
+
 if (!MAL_CLIENT_ID) {
-  console.warn("⚠️ WARNING: MAL_CLIENT_ID is not set. MAL API requests will fail. Add MAL_CLIENT_ID to environment variables.");
+  console.log("❌ MAL_CLIENT_ID is missing!");
 }
 
+// Manifest
 const manifest = {
   id: "org.khaled.mal.rating",
   version: "1.0.0",
@@ -50,66 +34,62 @@ const manifest = {
   idPrefixes: ["mal_"]
 };
 
-// Manifest
 app.get("/manifest.json", (req, res) => {
   res.json(manifest);
 });
 
-// Meta route
+// Meta
 app.get("/meta/anime/:id.json", async (req, res) => {
   try {
-    const rawId = req.params.id || "";
-    // expected id form "mal_<query>" — remove prefix
-    const query = decodeURIComponent(rawId.replace(/^mal_/, "")).trim();
-    if (!query) {
-      return res.json({ meta: null });
-    }
-
     if (!MAL_CLIENT_ID) {
-      console.warn("MAL_CLIENT_ID missing - returning null meta for", query);
       return res.json({ meta: null });
     }
 
-    const url = `https://api.myanimelist.net/v2/anime?q=${encodeURIComponent(query)}&limit=1&fields=mean,main_picture`;
+    const query = decodeURIComponent(
+      req.params.id.replace("mal_", "")
+    );
+
+    const url = `https://api.myanimelist.net/v2/anime?q=${query}&limit=1&fields=mean,main_picture,title`;
 
     const result = await axios.get(url, {
-      headers: { "X-MAL-CLIENT-ID": MAL_CLIENT_ID },
-      timeout: 7000
+      timeout: 5000, // ⏱️ 5 ثواني فقط
+      headers: {
+        "X-MAL-CLIENT-ID": MAL_CLIENT_ID
+      }
     });
 
-    // safe checks for structure
-    const data = result?.data?.data;
-    if (!Array.isArray(data) || data.length === 0) {
+    if (!result.data?.data?.length) {
       return res.json({ meta: null });
     }
 
-    const node = data[0].node || data[0];
-    const animeTitle = node?.title || node?.name || query;
-    const poster = node?.main_picture?.large || null;
-    const mean = node?.mean;
+    const anime = result.data.data[0].node;
 
     res.json({
       meta: {
         id: "mal_" + query,
         type: "anime",
-        name: animeTitle,
-        poster: poster,
-        description: `⭐ MAL Rating: ${mean ?? "N/A"}`
+        name: anime.title,
+        poster: anime.main_picture?.large || "",
+        description: `⭐ MAL Rating: ${anime.mean || "N/A"}`
       }
     });
 
-  } catch (e) {
-    // log full error for debugging
-    console.error("*** Error in /meta route:", e && e.stack ? e.stack : e);
-    // return safe response for Stremio
+  } catch (err) {
+    console.log("❌ MAL Error:", err.message);
+
+    // لا تخلي السيرفر يعلق
     res.json({ meta: null });
   }
 });
 
-const PORT = process.env.PORT || 7000;
+// Port
+const PORT = process.env.PORT || 8080;
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("Running on port", PORT);
+  console.log("✅ Running on port", PORT);
 });
+
+
 
 
 
