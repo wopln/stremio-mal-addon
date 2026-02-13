@@ -3,7 +3,12 @@ const axios = require("axios");
 
 const app = express();
 
-// Middleware
+// Health check (مهم لRailway)
+app.get("/", (req, res) => {
+  res.status(200).send("Stremio MAL Addon is running 🚀");
+});
+
+// CORS
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
@@ -11,16 +16,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root
-app.get("/", (req, res) => {
-  res.send("Stremio MAL Addon is running 🚀");
-});
-
 // Env
 const MAL_CLIENT_ID = process.env.MAL_CLIENT_ID;
 
 if (!MAL_CLIENT_ID) {
-  console.log("❌ MAL_CLIENT_ID is missing!");
+  console.error("❌ MAL_CLIENT_ID is missing!");
 }
 
 // Manifest
@@ -34,25 +34,24 @@ const manifest = {
   idPrefixes: ["mal_"]
 };
 
+// Manifest route
 app.get("/manifest.json", (req, res) => {
   res.json(manifest);
 });
 
-// Meta
+// Meta route
 app.get("/meta/anime/:id.json", async (req, res) => {
   try {
-    if (!MAL_CLIENT_ID) {
-      return res.json({ meta: null });
-    }
-
     const query = decodeURIComponent(
       req.params.id.replace("mal_", "")
     );
 
-    const url = `https://api.myanimelist.net/v2/anime?q=${query}&limit=1&fields=mean,main_picture,title`;
+    const url = `https://api.myanimelist.net/v2/anime?q=${encodeURIComponent(
+      query
+    )}&limit=1&fields=mean,main_picture,title`;
 
     const result = await axios.get(url, {
-      timeout: 5000, // ⏱️ 5 ثواني فقط
+      timeout: 10000, // يمنع التعليق
       headers: {
         "X-MAL-CLIENT-ID": MAL_CLIENT_ID
       }
@@ -75,19 +74,19 @@ app.get("/meta/anime/:id.json", async (req, res) => {
     });
 
   } catch (err) {
-    console.log("❌ MAL Error:", err.message);
+    console.error("API Error:", err.message);
 
-    // لا تخلي السيرفر يعلق
-    res.json({ meta: null });
+    res.status(500).json({ meta: null });
   }
 });
 
-// Port
-const PORT = process.env.PORT || 8080;
+// Listen
+const PORT = process.env.PORT || 7000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("✅ Running on port", PORT);
+  console.log("✅ Server running on port", PORT);
 });
+
 
 
 
