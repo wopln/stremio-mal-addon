@@ -2,6 +2,11 @@ const express = require("express");
 const axios = require("axios");
 
 const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Stremio MAL Addon is running 🚀");
+});
+
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
@@ -9,7 +14,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const MAL_CLIENT_ID = "5acd5aa756c0c2ad6f1b3b559ead9daa";
+const MAL_CLIENT_ID = process.env.MAL_CLIENT_ID;
 
 const manifest = {
   id: "org.khaled.mal.rating",
@@ -66,6 +71,7 @@ const PORT = process.env.PORT || 7000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Running on port", PORT);
 });
+
 
 
 
