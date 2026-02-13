@@ -2,6 +2,13 @@ const express = require("express");
 const axios = require("axios");
 
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Content-Type", "application/json");
+  next();
+});
 
 const MAL_CLIENT_ID = "5acd5aa756c0c2ad6f1b3b559ead9daa";
 
@@ -55,7 +62,11 @@ app.get("/meta/anime/:id.json", async (req, res) => {
   }
 });
 
-app.listen(7000, "0.0.0.0", () => {
-  console.log("Addon running on http://localhost:7000");
+const PORT = process.env.PORT || 7000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Running on port", PORT);
 });
+
+
 
