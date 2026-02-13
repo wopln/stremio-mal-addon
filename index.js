@@ -6,7 +6,6 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
   res.setHeader("Access-Control-Allow-Headers", "*");
-  res.setHeader("Content-Type", "application/json");
   next();
 });
 
@@ -67,6 +66,7 @@ const PORT = process.env.PORT || 7000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Running on port", PORT);
 });
+
 
 
 
